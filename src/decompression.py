@@ -71,7 +71,7 @@ def decompressione(secret_key: str, mode: int):
     bwtStartTime = time.time()
 
     # Dividi in blocchi mtfDecodedString
-    block_lenght = 1024*300 +1 # Deve essere la stessa usata in compressione +1 per l'EOF
+    block_lenght = 1024*30 +1 # Deve essere la stessa usata in compressione +1 per l'EOF
     using_blocks = True
     bwtDecodedString = []   
     rFile = open("TestFiles/Output/rfile.txt", "r")

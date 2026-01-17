@@ -29,7 +29,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
     # Codice per eseguire la BWT a blocchi
 
-    block_lenght = 1024*300
+    block_lenght = 1024*30
     using_blocks = True
     outputBWT = ""
     r = str(random.randint(0, 9999999))
