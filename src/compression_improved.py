@@ -18,11 +18,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	comm = MPI.COMM_WORLD
 	size = comm.Get_size()
 	rank = comm.Get_rank()
-
-	
-
-	block_mode=False
-	r = str(random.randint(0, 9999999))
+	r = None
 	if rank == 0:
 		filePath = "TestFiles/Input/" + file_name
 		inputFile = open(filePath, "rb")
@@ -34,72 +30,62 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		dictionary.add("\003")
 		dictionary = sorted(dictionary)
 		start_time = time.time()
+
 		#BWT
 		print("starting sBWT...")
 		bwtStartTime = time.time()
 
-		# Codice per eseguire la BWT a blocchi
-
-		block_length = 1024*30
-		using_blocks = True
-		outputBWT = ""
-		
+		# Salvo la chiave per la BWT
+		r = str(random.randint(0, 9999999))
 		rFile = open("TestFiles/Output/rfile.txt", "w")
 		rFile.write(r)
-		if using_blocks and (len(stringInput) <= block_length):
-			print("full file mode")
-			stringInput += "\003" # Add EOF
-			outputBWT = sbwt.bwt_from_suffix(stringInput, secret_key)
-			
-			"""
-				Implementazione MPI:
-					- scatter stringInput
-					- reduce return_dict to outputBWT
-			"""
-		else :
-			print("block mode")
-			block_mode = True
-	block_mode = comm.bcast(block_mode, root=0)
-	
-	print('ciao')
-	if block_mode:
-		block_length = 0
-		displ = []
-		counts = []
-		sendbuf = []
-		if rank == 0:
-	
-			sendbuf = np.frombuffer(stringInput.encode("utf-8"), dtype='b')
-			block_length = math.floor(len(sendbuf) / size)
-			displ.append(0)
-			for i in range(size):
-				if i < size - 1:
-					counts.append(block_length)
-					displ.append(displ[i] + counts[i])
-				else:
-					counts.append(len(sendbuf) - block_length * (size - 1))
 
-
-
-
-			print("Block length: ", block_length)
-
-		block_length = comm.scatter(counts, root=0)
-		recvbuf = np.empty(block_length, dtype='b')
-		comm.Scatterv((sendbuf, counts, displ, MPI.BYTE), recvbuf, root=0)
-		recvbuf = recvbuf.tobytes().decode("utf-8")
-		recvbuf+= "\003"
-
-
-		outputBWT_block = sbwt.bwt_from_suffix(recvbuf, r + secret_key)
-		outputBWT_block_list = comm.gather(outputBWT_block, root=0)
+	# Distribuisco i blocchi della BWT e la chiave r a tutti i processi
+	r = comm.bcast(r, root=0)
+	block_length = 0
+	displ = []
+	counts = []
+	sendbuf = []
+	if rank == 0:
 
 		
-			
-		
+		enc_time = time.time()
 
+		sendbuf = np.frombuffer(stringInput.encode("utf-8"), dtype='b')
+		# sendbuf = np.fromfile("file.txt", dtype='b')
+		block_length = math.floor(len(sendbuf) / size)
+		displ.append(0)
+		# Calcolo counts e displ, counts contiene la lunghezza di ogni blocco, displ contiene gli spostamenti
+		for i in range(size):
+			if i < size - 1:
+				counts.append(block_length)
+				displ.append(displ[i] + counts[i])
+			else:
+				counts.append(len(sendbuf) - block_length * (size - 1))
+		enc_elapsed_time = time.time() - enc_time
+		if not rank: print(str(enc_elapsed_time) + "  -> elapsed time of encoding BWT distribution")
 	
+	# Scatters the blocks to all processes
+	time_start = time.time()
+	block_length = comm.scatter(counts, root=0)
+	recvbuf = np.empty(block_length, dtype='b')
+	comm.Scatterv((sendbuf, counts, displ, MPI.BYTE), recvbuf, root=0)
+	recvbuf = recvbuf.tobytes().decode("utf-8")
+	recvbuf+= "\003"
+	eelapsed_time = time.time() - time_start
+	if not rank: print(str(eelapsed_time) + "  -> elapsed time of encoding BWT scatter")
+
+	time_start = time.time()
+	outputBWT_block = sbwt.bwt_from_suffix(recvbuf, r + secret_key)
+	eelapsed_time = time.time() - time_start
+	if not rank: print(str(eelapsed_time) + "  -> elapsed time of sBWT block")
 	
+	time_start = time.time()
+	outputBWT_block_list = comm.gather(outputBWT_block, root=0)
+	eelapsed_time = time.time() - time_start
+	if not rank: print(str(eelapsed_time) + "  -> elapsed time of gathering BWT blocks")
+
+	# Salvo l'output della BWT e il dizionario
 	if rank == 0:
 		outputBWT = ""
 		for element in outputBWT_block_list:
