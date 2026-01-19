@@ -7,10 +7,15 @@ import time
 import multiprocessing
 import math
 
+"""""
 def block_bwt(input, key, index, return_dict):
-    output = sbwt.ibwt_from_suffix(input, key)
-    return_dict[index] = output
+    outputBWT = sbwt.ibwt_from_suffix(input, key)
+    return_dict[index] = outputBWT
+"""""
 
+def block_bwt(task):
+    input_block, key, index = task
+    return index, sbwt.ibwt_from_suffix(input_block, key)
 
 def decompressione(secret_key: str, mode: int):
     start = time.time()
@@ -18,7 +23,7 @@ def decompressione(secret_key: str, mode: int):
     dictionaryFile = open("TestFiles/Output/outputDictBWT.txt", "rb")
     dictionaryLines = dictionaryFile.read()
     dictionaryStr = dictionaryLines.decode()
-
+    dictionaryFile.close()  
     # IPC
     pcStartTime = time.time()
 
@@ -27,7 +32,7 @@ def decompressione(secret_key: str, mode: int):
         encoded = encodedFile.read()
     else:
         encoded = pickle.load(encodedFile)
-
+    encodedFile.close() 
     outputPC = pc.decompress(encoded, mode)
 
     pcElapsedTime = time.time() - pcStartTime
@@ -71,33 +76,38 @@ def decompressione(secret_key: str, mode: int):
     bwtStartTime = time.time()
 
     # Dividi in blocchi mtfDecodedString
-    block_lenght = 1024*30 +1 # Deve essere la stessa usata in compressione +1 per l'EOF
+    #block_lenght = 1024*30 +1 # Deve essere la stessa usata in compressione +1 per l'EOF
+
+    bFile = open("TestFiles/Output/bfile.txt", "r")
+    block_lenght = int(bFile.readline()) + 1 #add EOF
+    bFile.close()   
     using_blocks = True
     bwtDecodedString = []   
     rFile = open("TestFiles/Output/rfile.txt", "r")
     r = rFile.readline()
-
+    rFile.close()   
     if using_blocks and len(mtfDecodedString) > block_lenght:
         print("block mode")
-        # Creo la variabile condivisa
-        manager = multiprocessing.Manager()
-        return_dict = manager.dict()
-
-        # Divido l'input e creo i processi
+        nproc = multiprocessing.cpu_count()
+        tasks = []
+        num_tasks = len(mtfDecodedString) // block_lenght
+        chunksize = max(1, num_tasks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
         j = 0
-        processList = []
-        for i in range(0, len(mtfDecodedString),block_lenght):
-            input_block = mtfDecodedString[i:i+block_lenght]
-            p = multiprocessing.Process(target=block_bwt, args=(input_block, r + secret_key, j, return_dict))
-            j+=1
-            processList.append(p)
-            p.start()
-        
-        for p in processList:
-            p.join()
+        for i in range(0, len(mtfDecodedString), block_lenght):
+            input_block = mtfDecodedString[i:i+block_lenght] 
+            tasks.append((input_block, r + secret_key, j)) #ogni task è un blocco da processare e il suo indice j
+            j += 1
 
-        for i in range(0,j):
-            bwtDecodedString.extend(return_dict[i])
+
+        with  multiprocessing.Pool(nproc) as pool:
+            results = pool.imap_unordered(block_bwt, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
+
+            # ricostruzione ordinata
+            output = [None] * j
+            for index, res in results:
+                output[index] = res
+
+            bwtDecodedString.extend("".join(output[i]) for i in range(0,j))
     else:
         print("full file mode")
         bwtDecodedString = sbwt.ibwt_from_suffix(mtfDecodedString, secret_key)
@@ -109,6 +119,7 @@ def decompressione(secret_key: str, mode: int):
         outputBWTString += bwtDecodedString[i]
     #outputBWTFile.write(str(outputBWTString))
     outputBWTFile.write(outputBWTString.encode())
+    outputBWTFile.close()   
     bwtElapsedTime = time.time() - bwtStartTime
     print(str(bwtElapsedTime) + "  -> elapsed time of I-BWT")
 
