@@ -135,7 +135,7 @@ def buildSuffixArrayDC3(txt, key):
 	# 5. Eseguo l'algoritmo DC3
 	# Ora max sarà un intero (il numero di caratteri distinti)
 	max = len(alfabeto)
-	print(rank_dict, '\n\n')
+	#print(rank_dict, '\n\n')
 	return dc3(s, len(s), max)
 
 def dc3(s, n, max):
@@ -157,24 +157,16 @@ def dc3(s, n, max):
 
 	# 2. Ordinamento iniziale delle triplette
 
-	for i in s12:
-		print(s_pad[i], s_pad[i+1], s_pad[i+2])
+	#for i in s12:
+	#	print(s_pad[i], s_pad[i+1], s_pad[i+2])
 
-	print('prima stampa\n', s12, '\n\n')
+	#print('prima stampa\n', s12, '\n\n')
 	s12 = customSort.counting_sort(s12, s_pad, 2, max) # Terzo elemento
 
-	for i in s12:
-		print(s_pad[i], s_pad[i+1], s_pad[i+2])
-	print('seconda stampa\n', s12, '\n\n')
 	s12 = customSort.counting_sort(s12, s_pad, 1, max) # Secondo elemento
 
-	for i in s12:
-		print(s_pad[i], s_pad[i+1], s_pad[i+2])
-	print('terza stampa\n', s12, '\n\n')
 	s12 = customSort.counting_sort(s12, s_pad, 0, max) # Primo elemento
-	for i in s12:
-		print(s_pad[i], s_pad[i+1], s_pad[i+2])
-	print('quarta stampa\n', s12, '\n\n')
+
 	# 3. Assegnazione dei nomi (naming)
 	# Se due triplette sono uguali, ricevono lo stesso nome (rango)
 	names = [0] * (n + 3)

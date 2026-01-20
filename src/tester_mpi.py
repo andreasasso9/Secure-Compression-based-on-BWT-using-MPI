@@ -3,6 +3,7 @@ import decompression_mpi as decompression
 import sys
 import filecmp
 from mpi4py import MPI
+import os
 
 if __name__ == "__main__":	
 
@@ -34,3 +35,15 @@ if __name__ == "__main__":
 			print("decompression was successful")
 		else:
 			print("decompression failed")
+
+		orig = os.path.getsize(original_file_path)
+		comp = os.path.getsize("TestFiles/Output/outputPC.txt")
+
+		ratio = orig / comp
+		percent = (1.0 - (comp / orig)) * 100
+
+		print(f"Compression ratio: {ratio:.4f}")
+		print(f"Compressione: {percent:.2f}%")
+
+		print(f"Originale: {orig} bytes")
+		print(f"Compresso: {comp} bytes")

@@ -31,3 +31,4 @@ src/decompressed.txt
 src/compressed.txt
 src/TestFiles/Output/decompressed.txt
 src/TestFiles/Output/rfile.txt
+src/TestFiles/Input/supermanual.ps

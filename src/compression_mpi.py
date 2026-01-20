@@ -26,9 +26,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		listInput = inputFile.read()
 		stringInput = listInput.decode()
 
-		dictionary = set(stringInput)
-		dictionary.add("\003")
-		dictionary = sorted(dictionary)
+		
 		start_time = time.time()
 
 		#BWT
@@ -105,6 +103,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		#MTF
 		print("starting bMTF...")
 		
+		dictionary = sorted(dictStr)
 		block_size = 1024 # 1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
 		
 		mtf_start_time = time.time()
