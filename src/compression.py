@@ -7,6 +7,7 @@ import multiprocessing
 import random
 import subprocess
 import math
+import os
 
 """""
 def block_bwt(input, key, index, return_dict):
@@ -14,19 +15,22 @@ def block_bwt(input, key, index, return_dict):
     return_dict[index] = outputBWT
 """""
 
-def block_bwt(task):
-    input_block, key, index = task
-    return index, sbwt.bwt_from_suffix(input_block, key)
+
+
+def block_bwt(args):
+    file_path, offset, block_length, key, index = args
+
+    with open(file_path, "rb") as f:
+        f.seek(offset)
+        data = f.read(block_length)
+
+    stringInput = data.decode() + "\003"
+    return index, sbwt.bwt_from_suffix(stringInput, key)
+
 
 def compressione(file_name: str, secret_key: str, mode: int):
     filePath = "TestFiles/Input/" + file_name
-    inputFile = open(filePath, "rb")
-    
-    listInput = inputFile.read()
-    stringInput = listInput.decode()
-    inputFile.close()
-
-    
+       
     start_time = time.time()
     #BWT
     print("starting sBWT...")
@@ -44,30 +48,29 @@ def compressione(file_name: str, secret_key: str, mode: int):
     rFile.write(r)
     rFile.close()
 
+    fileSize = os.path.getsize(filePath)
     #Ottego il numero di processori disponibili per dividere in blocchi la BWT e salvo
     nproc = multiprocessing.cpu_count()
-    num_blocks = max(nproc, int(nproc * (math.log10(len(stringInput)) ** 2))) #Euristica per il numero di blocchi
+    num_blocks = max(nproc, int(nproc * (math.log10(fileSize)))) #Euristica per il numero di blocchi
     print("Using ", nproc, " processors for BWT")
-    block_lenght = math.ceil(len(stringInput) / num_blocks)# Divide in nproc blocchi
+    block_length = math.ceil(fileSize/ num_blocks)# Divide in nproc blocchi
     
-    print("Block length for BWT: ", block_lenght)
+    print("Block length for BWT: ", block_length)
     bFile = open("TestFiles/Output/bfile.txt", "w")
-    bFile.write(str(block_lenght))
+    bFile.write(str(block_length))
     bFile.close()
 
-    if using_blocks and len(stringInput) > nproc * 10:
+    if using_blocks and fileSize > nproc * 10:
         print("block mode")
         time_start = time.time()
-        num_tasks = len(stringInput) // block_lenght
+        num_tasks = fileSize // block_length
         chunksize = max(1, num_tasks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
         # preparo i task
         tasks = []
         j = 0
-        for i in range(0, len(stringInput), block_lenght):
-            input_block = stringInput[i:i+block_lenght] + "\003"
-            tasks.append((input_block, r + secret_key, j)) #ogni task è un blocco da processare e il suo indice j
+        for offset in range(0, fileSize, block_length):
+            tasks.append((filePath, offset, block_length, r + secret_key, j))
             j += 1
-
         
         with  multiprocessing.Pool(nproc) as pool:
             results = pool.imap_unordered(block_bwt, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
@@ -83,6 +86,11 @@ def compressione(file_name: str, secret_key: str, mode: int):
         print(str(eelapsed_time) + "  -> elapsed time of sBWT blocks")
     else:
         print("full file mode")
+        inputFile = open(filePath, "rb")
+        listInput = inputFile.read()
+        stringInput = listInput.decode()
+        inputFile.close()
+
         stringInput += "\003" # Add EOF
         outputBWT = sbwt.bwt_from_suffix(stringInput, secret_key)
 
