@@ -13,6 +13,11 @@ def block_bwt(input, key, index, return_dict):
 	return_dict[index] = outputBWT
 """""
 
+def multi_rle_decode(task):
+	input_block, index = task
+	rleModule = rle.Rle()
+	return index,rle.Rle.parallel_rle_decode(rleModule, data=input_block)
+
 def block_bwt(task):
 	input_block, key, index = task
 	return index, sbwt.ibwt_from_suffix(input_block, key)
@@ -46,11 +51,61 @@ def decompressione(secret_key: str, mode: int):
 	for val in rleLines:
 		rleString += val'''
 	rleStartTime = time.time()
-	
-	rleModule = rle.Rle()
-	rleDecodedString = rle.Rle.rle_decode(rleModule, data=outputPC)
-	with open("TestFiles/Output/rleDecodedString.txt", "w") as tempRLEfile:
-			tempRLEfile.write(rleDecodedString)
+
+	"******************************"
+	#Parallel RLE Decoding 
+	rleDecodedString = []
+	nproc = multiprocessing.cpu_count()
+	if len(outputPC) > nproc * 100:
+		print("rle block mode")
+		tasks = []
+		displ = []
+		counts = []
+		results = []
+		size = nproc * 10
+		block_length = math.floor(len(outputPC) / size)
+		
+		displ.append(0)
+		seek = block_length - 1
+		j=0
+		for i in range(size):
+			if i < size - 1:
+				# Cerca l'ultima virgola nel blocco per non spezzare i numeri
+				while True:
+					if outputPC[seek] == ',':
+						counts.append(seek + 1 - displ[i]) 
+						displ.append(displ[i] + counts[i])
+						seek += block_length
+						break
+					else:
+						seek -= 1
+			else:
+				# Ultimo processo prende il resto
+				remaining = len(outputPC) - sum(counts)
+				counts.append(remaining)
+
+			# Preparo i task prendendo i blocchi di input in base a displ e counts
+			input_block = outputPC[displ[i]:displ[i] + counts[i]]
+			input_block = input_block[:-1] if input_block.endswith(",") else input_block #Rimuovo la virgola finale se presente
+			tasks.append((input_block,j))
+			j+=1	
+
+		with  multiprocessing.Pool(nproc) as pool:
+			results = pool.imap_unordered(multi_rle_decode, tasks, chunksize=1) # processa i task in parallelo, se finisce un task prende il successivo
+
+			# ricostruzione ordinata
+			output = [None] * j
+			for index, res in results:
+				output[index] = res
+
+		rleDecodedString ="".join(output)
+		rleDecodedString = rleDecodedString[:-1]  # rimuove l'ultima virgola aggiunta in parallel rle decode
+	else:
+		print("rle full file mode")
+		rleModule = rle.Rle()
+		rleDecodedString = rle.Rle.rle_decode(rleModule, data=outputPC)
+
+	"******************************"
 	#print(rleDecodedString)
 
 	rleElapsedTime = time.time() - rleStartTime
