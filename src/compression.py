@@ -46,50 +46,7 @@ def multi_rle_encode(task):
 
 	return index, rle_result
 
-def rle_merge(rle_blocks):
-	output = ""
-	#Controllo i blocchi RLE per unire eventuali caratteri uguali
-	for i in range(len(rle_blocks)-1):
-	
-		#Controllo se l'ultimo elemento del blocco i è uguale al primo del blocco i+1
-		# block è [value] oppure [count-value]
-		last_block_i = rle_blocks[i][-1] 
-		first_block_i1 = rle_blocks[i+1][0]
 
-		#se last block è [count-value]
-		if "-" in last_block_i:
-			count_i, char_i = last_block_i.split("-") #separo count e char
-			count_i = int(count_i)
-		else:
-			#se last block è [value] allora count = 1
-			count_i = 1
-			char_i = last_block_i
-
-		#se first block è [count-value]
-		if "-" in first_block_i1:
-			count_i1, char_i1 = first_block_i1.split("-") #separo count e char
-			count_i1 = int(count_i1)
-		else:
-			#se first block è [value] allora count = 1
-			count_i1 = 1 
-			char_i1 = first_block_i1
-
-		#controllo se i due caratteri sono uguali
-		if char_i == char_i1:
-			#Unisco i due blocchi somando i contatori
-			total_count = count_i + count_i1
-			#creo il nuovo elemento come [count-value] sommando i due contatori
-			new_element = str(total_count) + "-" + str(char_i)
-	 
-			#Aggiorno i due blocchi
-			#Rimuovo l'ultimo elemento del blocco i e lo sostituisco con il nuovo elemento con contatore aggiornato
-			rle_blocks[i] = ",".join(rle_blocks[i].split(",")[:-1] + [new_element])
-			
-			#Rimuovo il primo elemento del blocco i+1
-			rle_blocks[i+1] = ",".join(rle_blocks[i+1].split(",")[1:])
-
-	output = "".join(rle_blocks) 
-	return output[:-1] #Rimuovo l'ultima virgola
 
 def compressione(file_name: str, secret_key: str, mode: int):
 	filePath = "TestFiles/Input/" + file_name
@@ -230,7 +187,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 			for index, res in results:
 				output[index] = res
 
-		outputRLE = rle_merge(output)
+		outputRLE = rleModule.rle_merge(output)
 
 	else:
 		print("rle full file mode")
