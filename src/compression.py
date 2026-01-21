@@ -38,6 +38,8 @@ def multi_rle_encode(task):
 	arr = np.frombuffer(shared_arr, dtype=np.int32)
 
 	block = arr[start:end]  # ogni processo legge solo il suo blocco
+	if len(block) == 0:  # protezione contro blocchi vuoti
+		return index, ""
 	block = block[:-1] if block[-1] == "," else block  # rimuovi virgola se presente
 	rleModule = rle.Rle()
 	rle_result = rle.Rle.parallel_rle_encode(rleModule,data=list(map(str, block)))
@@ -192,21 +194,22 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	print("starting RLE")
 	rle_start_time = time.time()
 	size = len(outputMTF)
-
 	if  size > nproc * 10:
 		print("block mode")
 		# outputMTF è lista di interi
-	
+		chunksize = max(1, num_tasks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
+
 		shared_arr = RawArray('i', size)  # interi condivisi
 		shared_np = np.frombuffer(shared_arr, dtype=np.int32)
 		shared_np += outputMTF # copia i dati nella matrice condivisa
 
-		num_blocks = len(outputMTF) // block_length
+		num_blocks = max(nproc, int(nproc * (math.log10(size)))) #Euristica per il numero di blocchi
+
 		print("Using ", nproc, " processors for RLE")
 		block_length = math.ceil(len(outputMTF) / num_blocks)# Divide in nproc blocchi
 		time_start = time.time()
 	   
-
+	
 		# preparo i task
 		tasks = []
 		j = 0
@@ -220,7 +223,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 			j+=1
 		
 		with  multiprocessing.Pool(processes=nproc, initializer=init_worker, initargs=(shared_arr,)) as pool:
-			results = pool.imap_unordered(multi_rle_encode, tasks, chunksize=1) # processa i task in parallelo, se finisce un task prende il successivo
+			results = pool.imap_unordered(multi_rle_encode, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
 
 			# ricostruzione ordinata
 			output = [None] * j

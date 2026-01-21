@@ -9,10 +9,11 @@ import math
 import numpy as np
 from mpi4py import MPI
 
-def block_bwt(input, key, index, return_dict):
+"""
+	def block_bwt(input, key, index, return_dict):
 	output = sbwt.ibwt_from_suffix(input, key)
 	return_dict[index] = output
-
+"""
 
 def decompressione(secret_key: str, mode: int):
 	comm = MPI.COMM_WORLD

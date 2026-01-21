@@ -34,6 +34,42 @@ class Rle:
 				encoding += str(prev_char) + ","
 			return encoding[:-1]
 
+
+	def parallel_rle_encode(self, data):
+		encoding = ''
+		prev_char = ''
+		count = 1
+
+		if not data: return ''
+		# print("JJJJJ" + str(data))
+		# data = data.split(",")
+		for char in data:
+			# If the prev and current characters
+			# don't match...
+			if char != prev_char:
+				# ...then add the count and character
+				# to our encoding
+				if prev_char:
+					if count >= 2:
+						encoding += str(count) + "-" + str(prev_char) + ","
+					else:
+						encoding += str(prev_char) + ","
+				count = 1
+				prev_char = char
+			else:
+				# Or increment our counter
+				# if the characters do match
+				count += 1
+		else:
+			# Finish off the encoding
+			if count >= 2:
+				encoding += str(count) +"-" + str(prev_char) +","
+			else:
+				encoding += str(prev_char) + ","
+				
+			return encoding
+
+
 	def rle_decode(self, data):
 		decode = ''
 		data = data.split(",")
