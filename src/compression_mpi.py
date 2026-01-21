@@ -89,6 +89,8 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	eelapsed_time = time.time() - time_start
 	if not rank: print(str(eelapsed_time) + "  -> elapsed time of gathering BWT blocks")
 
+	rleModule = rle.Rle()
+	outputMTF = []
 	# Salvo l'output della BWT e il dizionario
 	if rank == 0:
 		outputBWT = ""
@@ -123,9 +125,46 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 		#RLE
 		print("starting RLE")
-		rleModule = rle.Rle()
+		
 		rle_start_time = time.time()
-		outputRLE = rle.Rle.rle_encode(rleModule, data=list(map(str, outputMTF))) # trasformo la lista di interi in lista di stringhe
+
+		####################################àoutputMTF=list(map(str, outputMTF))
+
+		outputMTF = np.array(outputMTF, dtype=np.uint8)
+		counts = []
+		displ = []
+
+		displ.append(0)
+		base_count = math.floor(len(outputMTF) / size)
+		for i in range(size):
+			""" if i < size - 1:
+				counts.append(base_count)
+			else:
+				counts.append(len(outputMTF) - displ[i])  # ultimo processo prende il resto """
+			counts.append( base_count if i < size - 1 else len(outputMTF) - displ[i] )
+			displ.append(displ[i] + counts[i])
+
+		displ = displ[:-1]  # rimuovo l'ultimo elemento che è in più
+			
+
+	outputMTFBlockLength = comm.scatter(counts, root=0)
+	
+	recvbuf = np.empty(outputMTFBlockLength, dtype=np.uint8)
+	
+	comm.Scatterv((outputMTF, counts, displ, MPI.UNSIGNED_CHAR), recvbuf, root=0)
+
+	# Converte le gli int in stringhe per RLE
+	input_for_rle = [str(x) for x in recvbuf]
+
+	# Pass the list of strings to RLE
+	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=input_for_rle)
+
+	outputRLE_list = comm.gather(outputRLEBlock, root=0)
+
+	if rank == 0:
+		outputRLE = rleModule.rle_merge(outputRLE_list)
+		
+
 		rle_elapsed_time = time.time() - rle_start_time
 		print(str(rle_elapsed_time) + "  -> elapsed time of RLE")
 		fileOutputRLE = open("TestFiles/Output/outputRLE.txt", "w+")
