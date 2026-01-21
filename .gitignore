@@ -32,3 +32,5 @@ src/compressed.txt
 src/TestFiles/Output/decompressed.txt
 src/TestFiles/Output/rfile.txt
 src/TestFiles/Input/supermanual.ps
+src/venv/*
+src/TestFiles/Output/bfile.txt

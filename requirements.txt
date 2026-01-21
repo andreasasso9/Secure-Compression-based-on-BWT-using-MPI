@@ -1,0 +1,3 @@
+dahuffman==0.4.2
+mpi4py==4.1.1
+numpy==2.4.1
