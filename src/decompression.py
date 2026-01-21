@@ -58,18 +58,23 @@ def decompressione(secret_key: str, mode: int):
 	nproc = multiprocessing.cpu_count()
 	if len(outputPC) > nproc * 100:
 		print("rle block mode")
+
+		num_blocks = max(nproc, int(nproc * (math.log10(len(outputPC))))) #Euristica per il numero di blocchi
+		chunksize = max(1, num_blocks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
+
+		time_start = time.time()
 		tasks = []
 		displ = []
 		counts = []
 		results = []
 		size = nproc * 10
-		block_length = math.floor(len(outputPC) / size)
+		block_length = math.floor(len(outputPC) / num_blocks)
 		
 		displ.append(0)
 		seek = block_length - 1
 		j=0
-		for i in range(size):
-			if i < size - 1:
+		for i in range(num_blocks):
+			if i < num_blocks - 1:
 				# Cerca l'ultima virgola nel blocco per non spezzare i numeri
 				while True:
 					if outputPC[seek] == ',':
@@ -91,7 +96,7 @@ def decompressione(secret_key: str, mode: int):
 			j+=1	
 
 		with  multiprocessing.Pool(nproc) as pool:
-			results = pool.imap_unordered(multi_rle_decode, tasks, chunksize=1) # processa i task in parallelo, se finisce un task prende il successivo
+			results = pool.imap_unordered(multi_rle_decode, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
 
 			# ricostruzione ordinata
 			output = [None] * j

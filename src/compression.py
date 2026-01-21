@@ -197,15 +197,13 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	if  size > nproc * 10:
 		print("block mode")
 		# outputMTF è lista di interi
-		chunksize = max(1, num_tasks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
 
 		shared_arr = RawArray('i', size)  # interi condivisi
 		shared_np = np.frombuffer(shared_arr, dtype=np.int32)
 		shared_np += outputMTF # copia i dati nella matrice condivisa
-
 		num_blocks = max(nproc, int(nproc * (math.log10(size)))) #Euristica per il numero di blocchi
+		chunksize = max(1, num_blocks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
 
-		print("Using ", nproc, " processors for RLE")
 		block_length = math.ceil(len(outputMTF) / num_blocks)# Divide in nproc blocchi
 		time_start = time.time()
 	   
