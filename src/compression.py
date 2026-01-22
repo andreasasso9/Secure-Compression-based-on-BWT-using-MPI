@@ -185,6 +185,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 			for index, res in results:
 				output[index] = res
 
+		rleModule = rle.Rle()
 		outputRLE = rleModule.rle_merge(output)
 
 	else:

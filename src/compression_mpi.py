@@ -43,7 +43,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	counts = np.zeros(size, dtype='i') if rank == 0 else None
 	#sendbuf = []
 	if rank == 0:
-		enc_time = time.time()
 		fileSize = os.path.getsize(filePath)
 		#sendbuf = np.frombuffer(stringInput.encode("utf-8"), dtype='b')
 		# sendbuf = np.fromfile("file.txt", dtype='b')
@@ -58,8 +57,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 				counts[i] = fileSize - block_length * (size - 1)  # ultimo processo prende il resto
 			displ[i] = displ[i-1] + counts[i-1]  # offset cumulativo
 			
-		enc_elapsed_time = time.time() - enc_time
-		if not rank: print(str(enc_elapsed_time) + "  -> elapsed time of encoding BWT distribution")
 	
 	# Scatters the blocks to all processes
 	time_start = time.time()
