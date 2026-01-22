@@ -11,7 +11,10 @@ def bwt_from_suffix(string, key, s_array=None):
     if s_array is None:
         #s_array = divsufsort(string)
          s_array = suffix.buildSuffixArrayDC3(string, key)
-    return("".join(string[idx - 1] for idx in s_array)) 
+    
+	# Costruisco la BWT usando l'array dei suffissi
+    # string[idx-1] corrisponde a un carattere dell'ultima colonna della matrice delle rotazioni della BWT
+    return("".join(string[idx - 1] for idx in s_array))
 
 # inversa della BWT che utilizza gli array dei suffissi
 def ibwt_from_suffix(string, key):
