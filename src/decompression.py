@@ -178,9 +178,7 @@ def decompressione(secret_key: str, mode: int):
 
 	#print(bwtDecodedString)
 	outputBWTFile = open("TestFiles/Output/decompressed.txt", "wb")
-	outputBWTString = ""
-	for i in range(0, len(bwtDecodedString)):
-		outputBWTString += bwtDecodedString[i]
+	outputBWTString = "".join(bwtDecodedString)
 	#outputBWTFile.write(str(outputBWTString))
 	outputBWTFile.write(outputBWTString.encode())
 	outputBWTFile.close()   

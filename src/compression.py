@@ -23,13 +23,9 @@ def init_worker(arr):
     shared_arr = arr  # ogni processo vede lo stesso buffer
 
 def block_bwt(args):
-	file_path, offset, block_length, key, index = args
-
-	with open(file_path, "rb") as f:
-		f.seek(offset)
-		data = f.read(block_length)
-
-	stringInput = data.decode() + "\003"
+	stringInput, key, index = args
+	
+	stringInput += "\003"
 	return index, sbwt.bwt_from_suffix(stringInput, key)
 
 def multi_rle_encode(task):
@@ -75,23 +71,33 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	nproc = multiprocessing.cpu_count()
 	num_blocks = max(nproc, int(nproc * (math.log10(fileSize)))) #Euristica per il numero di blocchi
 	print("Using ", nproc, " processors for BWT")
-	block_length = math.ceil(fileSize/ num_blocks)# Divide in nproc blocchi
+	block_length =(fileSize // num_blocks)# Divide in nproc blocchi
 	
 	print("Block length for BWT: ", block_length)
 	bFile = open("TestFiles/Output/bfile.txt", "w")
 	bFile.write(str(block_length))
 	bFile.close()
 
+	with open(filePath, "rb") as inputFile: 
+		listInput = inputFile.read()
+		stringInput = listInput.decode()
+		inputFile.close()
+
+
 	if using_blocks and fileSize > nproc * 10:
+		size = len(stringInput)
 		print("block mode")
 		time_start = time.time()
-		num_tasks = fileSize // block_length
+		num_tasks = size // block_length
 		chunksize = max(1, num_tasks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
+
 		# preparo i task
 		tasks = []
 		j = 0
-		for offset in range(0, fileSize, block_length):
-			tasks.append((filePath, offset, block_length, r + secret_key, j))
+
+		for offset in range(0, size, block_length):
+			input_block = stringInput[offset:offset+ block_length]
+			tasks.append((input_block, r + secret_key, j))
 			j += 1
 		
 		with  multiprocessing.Pool(nproc) as pool:
@@ -108,11 +114,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		print(str(eelapsed_time) + "  -> elapsed time of sBWT blocks")
 	else:
 		print("full file mode")
-		inputFile = open(filePath, "rb")
-		listInput = inputFile.read()
-		stringInput = listInput.decode()
-		inputFile.close()
-
 		stringInput += "\003" # Add EOF
 		outputBWT = sbwt.bwt_from_suffix(stringInput, secret_key)
 
