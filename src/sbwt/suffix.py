@@ -111,8 +111,33 @@ def printArr(arr, n):
 		
 	print()
 
+'''
+ -----------------------------------------------------------------------------
+ Wrapper: Costruzione Suffix Array con Ordinamento Segreto (DC3)
 
-def buildSuffixArrayDC3(txt, key):
+ Questa funzione agisce da pre-processore per l'algoritmo DC3.
+ Converte una stringa con una relazione d'ordine arbitraria (definita da 'key')
+ in un array di interi positivi normalizzati, requisito base per DC3.
+
+ INPUT:
+   txt (str | list): Il testo in chiaro da analizzare.
+   key (any)       : La chiave utilizzata da 'customSort' per generare il mapping
+                     segreto (determina l'ordine 'minore' o 'maggiore' dei caratteri).
+
+ PROCESSO (Mapping e Normalizzazione):
+   1. Identifica l'alfabeto e ottiene i pesi (float) per ogni carattere via 'key'.
+   2. "Comprime" i pesi float in ranghi interi contigui (1, 2, 3... K).
+      Esempio: Se 'z' vale 0.1 e 'a' vale 9.5 -> 'z' diventa 1, 'a' diventa 2.
+      Questo passaggio è critico perché DC3 usa Counting Sort.
+   3. Converte l'intera stringa 'txt' in una lista di questi interi ('s').
+
+ OUTPUT:
+   list[int]: Il Suffix Array finale ottenuto da DC3.
+              NOTA: L'ordinamento dei suffissi non è alfabetico standard,
+              ma rispetta la gerarchia imposta dalla 'key'.
+ -----------------------------------------------------------------------------
+'''
+def buildSuffixArrayDC3(txt:str | list, key):
 	# 1. Recupero l'alfabeto (caratteri unici)
 	alfabeto = sorted(set(txt))
 	
@@ -138,7 +163,26 @@ def buildSuffixArrayDC3(txt, key):
 	#print(rank_dict, '\n\n')
 	return dc3(s, len(s), max)
 
-def dc3(s, n, max):
+''' 
+-----------------------------------------------------------------------------
+ INPUT:
+   s (list[int]) : Il testo da analizzare convertito in numeri interi.
+                   REQUISITI FONDAMENTALI:
+                   1. Valori positivi: T[i] > 0 per tutti gli i < n.
+                   2. Padding: La lista DEVE avere 3 zeri extra in coda.
+                      T[n] = T[n+1] = T[n+2] = 0.
+                      Quindi len(T) deve essere >= n + 3.
+
+   n (int)       : La lunghezza effettiva della stringa (escluso il padding).
+
+   max (int)       : Il valore massimo presente in T (dimensione dell'alfabeto).
+
+ OUTPUT:
+   SA (list[int]): Suffix Array. Una lista di lunghezza 'n' contenente
+                   gli indici di partenza dei suffissi ordinati lessicograficamente.
+ ----------------------------------------------------------------------------
+ '''
+def dc3(s: list[int], n: int, max: int)-> list[int]:
 	# Caso base
 	if n == 0: return []
 	if n == 1: return [0]
@@ -155,23 +199,27 @@ def dc3(s, n, max):
 		if i % 3 != 0:
 			s12.append(i)
 
+	# ---------------------------------
 	# 2. Ordinamento iniziale delle triplette
+	# Gli indici in s12 sono ordinati in base ai valori che puntano in s_pad, in triple
 
 	#for i in s12:
 	#	print(s_pad[i], s_pad[i+1], s_pad[i+2])
 
-	#print('prima stampa\n', s12, '\n\n')
 	s12 = customSort.counting_sort(s12, s_pad, 2, max) # Terzo elemento
 
 	s12 = customSort.counting_sort(s12, s_pad, 1, max) # Secondo elemento
 
 	s12 = customSort.counting_sort(s12, s_pad, 0, max) # Primo elemento
+	# ---------------------------------
 
 	# 3. Assegnazione dei nomi (naming)
 	# Se due triplette sono uguali, ricevono lo stesso nome (rango)
-	names = [0] * (n + 3)
+	names = [0] * len(s_pad)
 	name = 0
 	last_triplet = (-1, -1, -1)
+	# Si cicla sugli indici dei suffissi s12 ordinati in precedenza
+	# in modo che (s_pad[i], s_pad[i+1], s_pad[i+2]) <= (s_pad[j], s_pad[j+1], s_pad[j+2]) per i < j
 	for i in s12:
 		if (s_pad[i], s_pad[i+1], s_pad[i+2]) != last_triplet:
 			name += 1
@@ -179,6 +227,8 @@ def dc3(s, n, max):
 		names[i] = name
 
 	# 4. Controllo ricorsione
+	# Le triplette uguali hanno lo stesso nome, ma i suffissi associati non necssariamente sono uguali
+	# Serve quindi una analisi più approfondita (ricorsiva) per associare il rango corretto
 	if name < len(s12):
 		# Se ci sono nomi duplicati, dobbiamo risolvere l'ordine ricorsivamente
 		s1_idx = [i for i in range(n + (1 if n % 3 == 1 else 0)) if i % 3 == 1]
@@ -215,10 +265,13 @@ def dc3(s, n, max):
 	while i12 < len(s12_sorted) and i0 < len(s0):
 		p12, p0 = s12_sorted[i12], s0[i0]
 		
-		# Confronto basato sulla tecnica Difference Cover modulo 3
+		# Confrontiamo i suffissi
+		# I mod 1 e mod 2 richiedono confronti diversi perché names non ha valori per i mod 0
+		# Confronta i primi caratteri dei suffissi prima del primo rank utile
+		# names = [0,a,b,0,c,d,0,e,f,....]
 		if p12 % 3 == 1:
 			# Caso mod 1: basta un confronto (s[i], rank[i+1])
-			is_less = (s_pad[p12], names[p12+1]) < (s_pad[p0], names[p0+1])
+			is_less = (s_pad[p12], names[p12+1]) < (s_pad[p0], names[p0+1])   
 		else:
 			# Caso mod 2: serve un confronto (s[i], s[i+1], rank[i+2])
 			is_less = (s_pad[p12], s_pad[p12+1], names[p12+2]) < (s_pad[p0], s_pad[p0+1], names[p0+2])
@@ -230,6 +283,7 @@ def dc3(s, n, max):
 			res.append(p0)
 			i0 += 1
 			
+	# Aggiungo i rimanenti
 	res.extend(s12_sorted[i12:])
 	res.extend(s0[i0:])
 	return res
