@@ -56,19 +56,24 @@ def decompressione(secret_key: str, mode: int):
 	#Parallel RLE Decoding 
 	rleDecodedString = []
 	nproc = multiprocessing.cpu_count()
-	if len(outputPC) > nproc * 100:
+	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
+	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
+
+	size = len(outputPC)
+	block_length = max(MIN_BLOCK, min(math.ceil(size / nproc),MAX_BLOCK)) 
+	num_blocks = max(1, math.ceil(size / block_length)) #se il file è minore di MIN_BLOCK va in full size
+
+
+
+	if num_blocks>1:
 		print("rle block mode")
 
-		num_blocks = max(nproc, int(nproc * (math.log10(len(outputPC))))) #Euristica per il numero di blocchi
-		chunksize = max(1, num_blocks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
-
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
 		time_start = time.time()
 		tasks = []
 		displ = []
 		counts = []
 		results = []
-		size = nproc * 10
-		block_length = math.floor(len(outputPC) / num_blocks)
 		
 		displ.append(0)
 		seek = block_length - 1
@@ -142,18 +147,6 @@ def decompressione(secret_key: str, mode: int):
 
 	bFile = open("TestFiles/Output/bfile.txt", "r")
 	block_lenght = int(bFile.readline()) + 1 #add EOF
-
-	nproc = multiprocessing.cpu_count()
-	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
-	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
-
-	fileSize = len(mtfDecodedString)
-	#Ottego il numero di processori disponibili per dividere in blocchi la BWT e salvo
-	
-	#Block lenght può essere compresa solo tra MIN_BLOCK e MAX_BLOCK
-	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK))
-	num_blocks = max(1, fileSize // block_lenght) #se il file è minore di MIN_BLOCK va in full size
-
 	bFile.close()   
 	using_blocks = True
 	bwtDecodedString = []   
@@ -162,10 +155,12 @@ def decompressione(secret_key: str, mode: int):
 	rFile.close()
 	
 	nproc = multiprocessing.cpu_count()
-	if num_blocks > 1:
+	if using_blocks and len(mtfDecodedString) > nproc * 10:
 		print("block mode")
-		tasks = []
 		
+		tasks = []
+		num_tasks = len(mtfDecodedString) // block_lenght
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
 		j = 0
 		for i in range(0, len(mtfDecodedString), block_lenght):
 			input_block = mtfDecodedString[i:i+block_lenght] 
@@ -174,7 +169,7 @@ def decompressione(secret_key: str, mode: int):
 
 
 		with  multiprocessing.Pool(nproc) as pool:
-			results = pool.imap_unordered(block_bwt, tasks, chunksize=3) # processa i task in parallelo, se finisce un task prende il successivo
+			results = pool.imap_unordered(block_bwt, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
 
 			# ricostruzione ordinata
 			output = [None] * j

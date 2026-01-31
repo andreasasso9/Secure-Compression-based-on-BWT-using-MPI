@@ -74,7 +74,8 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	#Ottego il numero di processori disponibili per dividere in blocchi la BWT e salvo
 	
 	#Block lenght può essere compresa solo tra MIN_BLOCK e MAX_BLOCK
-	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK))
+	print("Calculated block len ",fileSize // nproc )
+	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK)) 
 	num_blocks = max(1, fileSize // block_length) #se il file è minore di MIN_BLOCK va in full size
 
 	print("Block length for BWT: ", block_length)
@@ -92,7 +93,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		print("block mode")
 		time_start = time.time()
 		num_tasks = size // block_length
-
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
 		# preparo i task
 		tasks = []
 		j = 0
@@ -103,7 +104,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 			j += 1
 		
 		with  multiprocessing.Pool(nproc) as pool:
-			results = pool.imap_unordered(block_bwt, tasks, chunksize=3) # processa i task in parallelo, se finisce un task prende il successivo
+			results = pool.imap_unordered(block_bwt, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
 
 			# ricostruzione ordinata
 			output = [None] * j
@@ -154,20 +155,17 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	print("starting RLE")
 	rle_start_time = time.time()
 	size = len(outputMTF)
-	if  size > nproc * 10:
+	block_length = max(MIN_BLOCK, min(math.ceil(size / nproc),MAX_BLOCK)) 
+	num_blocks = max(1, math.ceil(size / block_length)) #se il file è minore di MIN_BLOCK va in full size
+	if  num_blocks > 1:
 		print("block mode")
 		# outputMTF è lista di interi
 
 		shared_arr = RawArray('i', size)  # interi condivisi
 		shared_np = np.frombuffer(shared_arr, dtype=np.int32)
 		shared_np += outputMTF # copia i dati nella matrice condivisa
-		num_blocks = max(nproc, int(nproc * (math.log10(size)))) #Euristica per il numero di blocchi
-		chunksize = max(1, num_blocks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
-
-		block_length = math.ceil(len(outputMTF) / num_blocks)# Divide in nproc blocchi
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
 		time_start = time.time()
-	   
-	
 		# preparo i task
 		tasks = []
 		j = 0
