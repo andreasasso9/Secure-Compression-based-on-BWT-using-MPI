@@ -66,13 +66,17 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	rFile.write(r)
 	rFile.close()
 
+	nproc = multiprocessing.cpu_count()
+	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
+	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
+
 	fileSize = os.path.getsize(filePath)
 	#Ottego il numero di processori disponibili per dividere in blocchi la BWT e salvo
-	nproc = multiprocessing.cpu_count()
-	num_blocks = max(nproc, int(nproc * (math.log10(fileSize)))) #Euristica per il numero di blocchi
-	print("Using ", nproc, " processors for BWT")
-	block_length =(fileSize // num_blocks)# Divide in nproc blocchi
 	
+	#Block lenght può essere compresa solo tra MIN_BLOCK e MAX_BLOCK
+	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK))
+	num_blocks = max(1, fileSize // block_length) #se il file è minore di MIN_BLOCK va in full size
+
 	print("Block length for BWT: ", block_length)
 	bFile = open("TestFiles/Output/bfile.txt", "w")
 	bFile.write(str(block_length))
@@ -83,13 +87,11 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		stringInput = listInput.decode()
 		inputFile.close()
 
-
-	if using_blocks and fileSize > nproc * 10:
+	if num_blocks > 1:
 		size = len(stringInput)
 		print("block mode")
 		time_start = time.time()
 		num_tasks = size // block_length
-		chunksize = max(1, num_tasks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
 
 		# preparo i task
 		tasks = []
@@ -101,7 +103,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 			j += 1
 		
 		with  multiprocessing.Pool(nproc) as pool:
-			results = pool.imap_unordered(block_bwt, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
+			results = pool.imap_unordered(block_bwt, tasks, chunksize=3) # processa i task in parallelo, se finisce un task prende il successivo
 
 			# ricostruzione ordinata
 			output = [None] * j

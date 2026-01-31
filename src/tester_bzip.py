@@ -28,6 +28,7 @@ if __name__ == "__main__":
 	print("Finished compression, elapsed time: ", compression_end - compression_start)
 	compressedFile = open("compressed.txt", "wb")
 	compressedFile.write(encoded)
+	compressedFile.close()
 
 	print("\n\nStarting decompression...")
 	decompression_start = time.time()
@@ -37,6 +38,8 @@ if __name__ == "__main__":
 
 	decompressedFile = open("decompressed.txt", "wb")
 	decompressedFile.write(decoded)
+	decompressedFile.close()
+
 	result = filecmp.cmp(path, "decompressed.txt", False)
 	if result:
 		print("Compression and decompression successfully")
@@ -45,7 +48,6 @@ if __name__ == "__main__":
 
 	orig = os.path.getsize(path)
 	comp = os.path.getsize(compressedFile.name)
-
 	ratio = orig / comp
 	percent = (1.0 - (comp / orig)) * 100
 
