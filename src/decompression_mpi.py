@@ -4,16 +4,34 @@ import rle.rle as rle
 import pc.pc as pc
 import pickle
 import time
-import multiprocessing
 import math
 import numpy as np
 from mpi4py import MPI
+import datetime
 
-"""
-	def block_bwt(input, key, index, return_dict):
-	output = sbwt.ibwt_from_suffix(input, key)
-	return_dict[index] = output
-"""
+def block_ibwt(input_block, key, rank):
+    with open(f"TestFiles/Output/bfile_{rank}.txt", "r") as bFile:
+        block_lengths = [int(line.strip()) for line in bFile.readlines()]
+    
+    final_output = []
+    offset = 0
+    for length in block_lengths:
+        # Estrai esattamente la porzione di blocco corretta
+        s = input_block[offset : offset + length]
+        offset += length
+        
+        # Inverti la BWT
+        out = sbwt.ibwt_from_suffix(s, key)
+        final_output.append("".join(out))
+        
+    return "".join(final_output)
+		
+
+def log_progress(message):
+    if MPI.COMM_WORLD.Get_rank() == 0:  # Solo il rank 0 esegue il log
+        with open("progress.txt", "a") as progress:
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            progress.write(f"[{timestamp}] {message}\n")
 
 def decompressione(secret_key: str, mode: int):
 	comm = MPI.COMM_WORLD
@@ -45,7 +63,7 @@ def decompressione(secret_key: str, mode: int):
 
 		pcElapsedTime = time.time() - pcStartTime
 		print(str(pcElapsedTime) + "  -> elapsed time of I-PC")
-		#print("OUTPUT", outputPC[:500])
+		log_progress(str(pcElapsedTime) + "  -> elapsed time of I-PC")
 
 		# IRLE
 		'''rleFile = open("TestFiles/Output/outputRLE.txt", "r")
@@ -60,6 +78,7 @@ def decompressione(secret_key: str, mode: int):
 		
 		block_length = math.floor(len(outputPC) / size)
 		print("Block length RLE: ", block_length)
+		log_progress(f"Block length RLE: {block_length}")
 		displ.append(0)
 		seek = block_length - 1
 		for i in range(size):
@@ -106,6 +125,7 @@ def decompressione(secret_key: str, mode: int):
 
 		rleElapsedTime = time.time() - rleStartTime
 		print(str(rleElapsedTime) + "  -> elapsed time of I-RLE")
+		log_progress(str(rleElapsedTime) + "  -> elapsed time of I-RLE")
 
 		# IMTF
 		
@@ -123,6 +143,7 @@ def decompressione(secret_key: str, mode: int):
 
 		mtfElapsedTime = time.time() - mtfStartTime
 		print(str(mtfElapsedTime) + "  -> elapsed time of I-BMTF")
+		log_progress(str(mtfElapsedTime) + "  -> elapsed time of I-BMTF")
 
 		# IBWT
 		bwtStartTime = time.time()
@@ -147,7 +168,7 @@ def decompressione(secret_key: str, mode: int):
 	recvbuf = np.empty(block_length, dtype='b')
 	comm.Scatterv((sendbuf, counts, displ, MPI.BYTE), recvbuf, root=0)
 	recvbuf = recvbuf.tobytes().decode("utf-8")
-	outputBWT_block = sbwt.ibwt_from_suffix(recvbuf, r + secret_key)
+	outputBWT_block = block_ibwt(recvbuf, r + secret_key, rank)
 	outputBWT_block = ''.join(outputBWT_block)
 	outputBWT_block_list = comm.gather(outputBWT_block, root=0)
 
@@ -160,5 +181,7 @@ def decompressione(secret_key: str, mode: int):
 		outputBWTFile.write(outputBWTString.encode())
 		bwtElapsedTime = time.time() - bwtStartTime
 		print(str(bwtElapsedTime) + "  -> elapsed time of I-BWT")
+		log_progress(str(bwtElapsedTime) + "  -> elapsed time of I-BWT")
 
 		print(str(time.time() - start) + " -> elapsed time of decompression")
+		log_progress(str(time.time() - start) + " -> elapsed time of decompression")

@@ -143,7 +143,6 @@ def decompressione(secret_key: str, mode: int):
 	bFile = open("TestFiles/Output/bfile.txt", "r")
 	block_lenght = int(bFile.readline()) + 1 #add EOF
 
-	nproc = multiprocessing.cpu_count()
 	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
 	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
 
@@ -151,7 +150,7 @@ def decompressione(secret_key: str, mode: int):
 	#Ottego il numero di processori disponibili per dividere in blocchi la BWT e salvo
 	
 	#Block lenght può essere compresa solo tra MIN_BLOCK e MAX_BLOCK
-	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK))
+	
 	num_blocks = max(1, fileSize // block_lenght) #se il file è minore di MIN_BLOCK va in full size
 
 	bFile.close()   
