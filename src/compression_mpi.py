@@ -28,9 +28,9 @@ def block_bwt(stringInput, key, rank):
 
     return "".join(results) # Unisce tutti i sotto-blocchi del rank
 
-def log_progress(message):
+def log_progress(message, mode='a'):
 	if MPI.COMM_WORLD.Get_rank() == 0:  # Solo il rank 0 esegue il log
-		with open("progress.txt", "a") as progress:
+		with open("progress.txt", mode) as progress:
 			timestamp = datetime.datetime.now().strftime("%H:%M:%S")
 			progress.write(f"[{timestamp}] {message}\n")
 
@@ -46,7 +46,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 		#BWT
 		print("starting sBWT...")
-		log_progress("starting sBWT...")
+		log_progress("starting sBWT...", mode='w')
 		bwtStartTime = time.time()
 
 		# Salvo la chiave per la BWT
@@ -180,10 +180,16 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	comm.Scatterv((outputMTF, counts, displ, MPI.UNSIGNED_CHAR), recvbuf, root=0)
 
 	# Converte le gli int in stringhe per RLE
-	input_for_rle = [str(x) for x in recvbuf]
+	#input_for_rle = [str(x) for x in recvbuf]
 
 	# Pass the list of strings to RLE
-	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=input_for_rle)
+	# outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=input_for_rle)
+
+
+	# Passa direttamente recvbuf (che è un numpy array di interi).
+	# La nuova parallel_rle_encode gestisce gli interi e li converte in stringa
+	# solo al momento del salvataggio, risparmiando 300MB di allocazioni inutili.
+	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=recvbuf)
 
 	outputRLE_list = comm.gather(outputRLEBlock, root=0)
 

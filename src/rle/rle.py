@@ -136,19 +136,43 @@ class Rle:
 		return decode[:-1]
 	
 	def parallel_rle_decode(self, data):
-		decode = ''
-		data = data.split(",")
-		for char in data:
-			# If the character is numerical...
-			if char != "":
-				x = re.search("-\d+$", char)
-				if x:
-					char = char.split("-")
-					decode += (char[1]+",") * int(char[0])
-				else:
-					decode += char + ","
+		if not data: 
+			return ""
 		
-		return decode
+		decoded_list = []
+		# Divide i token. Se ci sono doppi virgole (,,), crea stringhe vuote.
+		tokens = data.split(",")
+		
+		for token in tokens:
+			# FIX CRUCIALE: Salta le stringhe vuote generate da ,, o virgole iniziali
+			if not token:
+				continue
+				
+			if "-" in token:
+				try:
+					# Decodifica veloce "count-value"
+					parts = token.split("-")
+					count = int(parts[0])
+					val = parts[1]
+					decoded_list.extend([val] * count)
+				except (ValueError, IndexError):
+					# Se il formato è errato, ignora o gestisci come valore singolo
+					continue 
+			else:
+				# Valore singolo
+				decoded_list.append(token)
+		
+		# Ricostruisce la stringa con le virgole.
+		result = ",".join(decoded_list)
+		
+		# FIX CRUCIALE 2: Aggiunge SEMPRE una virgola finale.
+		# In decompression.py i blocchi vengono uniti con "".join(output).
+		# Se non mettiamo la virgola qui, "10,20" + "30,40" diventerebbe "10,2030,40".
+		# Inoltre, decompression.py esegue [:-1] che rimuoverà correttamente questa virgola.
+		if result:
+			return result + ","
+		else:
+			return ""
 
 if __name__ == "__main__":
 	rle = Rle()
