@@ -56,11 +56,18 @@ def decompressione(secret_key: str, mode: int):
 	#Parallel RLE Decoding 
 	rleDecodedString = []
 	nproc = multiprocessing.cpu_count()
-	if len(outputPC) > nproc * 100:
-		print("rle block mode")
+	size = len(outputPC)
 
-		num_blocks = max(nproc, int(nproc * (math.log10(len(outputPC))))) #Euristica per il numero di blocchi
-		chunksize = max(1, num_blocks // (nproc * 2)) #Definisco la dimensione dei chunk per ogni processo 
+	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
+	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
+
+	block_length = max(MIN_BLOCK, min(math.ceil(size / nproc),MAX_BLOCK))
+	num_blocks = max(1, math.ceil(size / block_length)) #se il file è minore di MIN_BLOCK va in full size
+
+	if num_blocks > 1:
+		print("rle block mode")
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
+
 
 		time_start = time.time()
 		tasks = []
@@ -68,7 +75,6 @@ def decompressione(secret_key: str, mode: int):
 		counts = []
 		results = []
 		size = nproc * 10
-		block_length = math.floor(len(outputPC) / num_blocks)
 		
 		displ.append(0)
 		seek = block_length - 1
@@ -166,8 +172,9 @@ def decompressione(secret_key: str, mode: int):
 	if num_blocks > 1:
 		print("block mode")
 		tasks = []
-		
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
 		j = 0
+		
 		for i in range(0, len(mtfDecodedString), block_lenght):
 			input_block = mtfDecodedString[i:i+block_lenght] 
 			tasks.append((input_block, r + secret_key, j)) #ogni task è un blocco da processare e il suo indice j
@@ -175,7 +182,7 @@ def decompressione(secret_key: str, mode: int):
 
 
 		with  multiprocessing.Pool(nproc) as pool:
-			results = pool.imap_unordered(block_bwt, tasks, chunksize=3) # processa i task in parallelo, se finisce un task prende il successivo
+			results = pool.imap_unordered(block_bwt, tasks, chunksize) # processa i task in parallelo, se finisce un task prende il successivo
 
 			# ricostruzione ordinata
 			output = [None] * j
