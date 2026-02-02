@@ -57,7 +57,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	# Codice per eseguire la BWT a blocchi
 
 	#block_lenght = 1024*30
-	using_blocks = True
 	outputBWT = ""
 
 	#Salvo la chiave per la BWT
@@ -93,7 +92,8 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		print("block mode")
 		time_start = time.time()
 		num_tasks = size // block_length
-		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
+
 		# preparo i task
 		tasks = []
 		j = 0
@@ -155,8 +155,16 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	print("starting RLE")
 	rle_start_time = time.time()
 	size = len(outputMTF)
+<<<<<<< HEAD
 	block_length = max(MIN_BLOCK, min(math.ceil(size / nproc),MAX_BLOCK)) 
 	num_blocks = max(1, math.ceil(size / block_length)) #se il file è minore di MIN_BLOCK va in full size
+=======
+
+	block_length = max(MIN_BLOCK, min(math.ceil(size / nproc),MAX_BLOCK))
+	num_blocks = max(1, math.ceil(size / block_length)) #se il file è minore di MIN_BLOCK va in full size
+
+
+>>>>>>> develop
 	if  num_blocks > 1:
 		print("block mode")
 		# outputMTF è lista di interi
@@ -164,8 +172,15 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		shared_arr = RawArray('i', size)  # interi condivisi
 		shared_np = np.frombuffer(shared_arr, dtype=np.int32)
 		shared_np += outputMTF # copia i dati nella matrice condivisa
+<<<<<<< HEAD
 		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
 		time_start = time.time()
+=======
+
+		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
+		time_start = time.time()
+	   
+>>>>>>> develop
 		# preparo i task
 		tasks = []
 		j = 0

@@ -81,38 +81,43 @@ class Rle:
 
 
 	def parallel_rle_encode(self, data):
-		encoding = ''
-		prev_char = ''
+		# Protezione input vuoto
+		if data is None or len(data) == 0: 
+			return ''
+		
+		output_list = []
+		
+		# Prendiamo il primo elemento subito per inizializzare
+		# Questo ci permette di accettare 'data' anche come numpy array di interi
+		# senza doverli convertire prima in stringhe (enorme risparmio di tempo)
+		prev_char = data[0]
 		count = 1
-
-		if not data: return ''
-		# print("JJJJJ" + str(data))
-		# data = data.split(",")
-		for char in data:
-			# If the prev and current characters
-			# don't match...
+		
+		# Itera dal secondo elemento fino alla fine
+		for i in range(1, len(data)):
+			char = data[i]
 			if char != prev_char:
-				# ...then add the count and character
-				# to our encoding
-				if prev_char:
-					if count >= 2:
-						encoding += str(count) + "-" + str(prev_char) + ","
-					else:
-						encoding += str(prev_char) + ","
+				# Aggiunge al buffer (molto più veloce di += su stringhe lunghe)
+				if count >= 2:
+					output_list.append(f"{count}-{prev_char}")
+				else:
+					output_list.append(str(prev_char))
+				
 				count = 1
 				prev_char = char
 			else:
-				# Or increment our counter
-				# if the characters do match
 				count += 1
+		
+		# Aggiungi l'ultimo blocco rimasto appeso (la parte "else" del ciclo originale)
+		if count >= 2:
+			output_list.append(f"{count}-{prev_char}")
 		else:
-			# Finish off the encoding
-			if count >= 2:
-				encoding += str(count) +"-" + str(prev_char) +","
-			else:
-				encoding += str(prev_char) + ","
-				
-			return encoding
+			output_list.append(str(prev_char))
+			
+		# IMPORTANTE: Il codice originale terminava la stringa con una virgola ",".
+		# join crea "a,b,c", quindi aggiungiamo manualmete la "," finale
+		# per non rompere il codice che segue (es. il merge).
+		return ",".join(output_list) + ","
 
 
 	def rle_decode(self, data):
@@ -131,19 +136,43 @@ class Rle:
 		return decode[:-1]
 	
 	def parallel_rle_decode(self, data):
-		decode = ''
-		data = data.split(",")
-		for char in data:
-			# If the character is numerical...
-			if char != "":
-				x = re.search("-\d+$", char)
-				if x:
-					char = char.split("-")
-					decode += (char[1]+",") * int(char[0])
-				else:
-					decode += char + ","
+		if not data: 
+			return ""
 		
-		return decode
+		decoded_list = []
+		# Divide i token. Se ci sono doppi virgole (,,), crea stringhe vuote.
+		tokens = data.split(",")
+		
+		for token in tokens:
+			# FIX CRUCIALE: Salta le stringhe vuote generate da ,, o virgole iniziali
+			if not token:
+				continue
+				
+			if "-" in token:
+				try:
+					# Decodifica veloce "count-value"
+					parts = token.split("-")
+					count = int(parts[0])
+					val = parts[1]
+					decoded_list.extend([val] * count)
+				except (ValueError, IndexError):
+					# Se il formato è errato, ignora o gestisci come valore singolo
+					continue 
+			else:
+				# Valore singolo
+				decoded_list.append(token)
+		
+		# Ricostruisce la stringa con le virgole.
+		result = ",".join(decoded_list)
+		
+		# FIX CRUCIALE 2: Aggiunge SEMPRE una virgola finale.
+		# In decompression.py i blocchi vengono uniti con "".join(output).
+		# Se non mettiamo la virgola qui, "10,20" + "30,40" diventerebbe "10,2030,40".
+		# Inoltre, decompression.py esegue [:-1] che rimuoverà correttamente questa virgola.
+		if result:
+			return result + ","
+		else:
+			return ""
 
 if __name__ == "__main__":
 	rle = Rle()

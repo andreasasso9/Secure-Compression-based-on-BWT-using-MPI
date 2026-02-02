@@ -30,15 +30,14 @@ def secure_decode(input: List[int], alphabeth, key, block_size) -> str:
     
     hash = hashlib.md5(initialization_vector.encode()).hexdigest()
     # Computo la MTF su ogni blocco permutando l'alfabeto
-    output_string = ""
+    output_string = []
     for i in range(0, len(input), block_size):
         block_alphabeth = customSort.getListSecretSort(alphabeth, key + hash)
         output_block = mtf.decode(input[i:i+block_size], block_alphabeth)
-        output_string += output_block
+        output_string.append(output_block)
         hash = hashlib.md5(str(input[i:i+block_size]).encode()).hexdigest() # Bisogna calcolare l'hash sul blocco decodificato (dobbiamo invertire anche questo)
 
-    return output_string
-
+    return "".join(output_string)
 
 if __name__ == "__main__":
 

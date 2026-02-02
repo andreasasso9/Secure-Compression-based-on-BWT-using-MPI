@@ -4,16 +4,34 @@ import rle.rle as rle
 import pc.pc as pc
 import pickle
 import time
-import multiprocessing
 import math
 import numpy as np
 from mpi4py import MPI
+import datetime
 
-"""
-	def block_bwt(input, key, index, return_dict):
-	output = sbwt.ibwt_from_suffix(input, key)
-	return_dict[index] = output
-"""
+def block_ibwt(input_block, key, rank):
+    with open(f"TestFiles/Output/bfile_{rank}.txt", "r") as bFile:
+        block_lengths = [int(line.strip()) for line in bFile.readlines()]
+    
+    final_output = []
+    offset = 0
+    for length in block_lengths:
+        # Estrai esattamente la porzione di blocco corretta
+        s = input_block[offset : offset + length]
+        offset += length
+        
+        # Inverti la BWT
+        out = sbwt.ibwt_from_suffix(s, key)
+        final_output.append("".join(out))
+        
+    return "".join(final_output)
+		
+
+def log_progress(message):
+    if MPI.COMM_WORLD.Get_rank() == 0:  # Solo il rank 0 esegue il log
+        with open("progress.txt", "a") as progress:
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            progress.write(f"[{timestamp}] {message}\n")
 
 def decompressione(secret_key: str, mode: int):
 	comm = MPI.COMM_WORLD
@@ -45,7 +63,7 @@ def decompressione(secret_key: str, mode: int):
 
 		pcElapsedTime = time.time() - pcStartTime
 		print(str(pcElapsedTime) + "  -> elapsed time of I-PC")
-		#print("OUTPUT", outputPC[:500])
+		log_progress(str(pcElapsedTime) + "  -> elapsed time of I-PC")
 
 		# IRLE
 		'''rleFile = open("TestFiles/Output/outputRLE.txt", "r")
@@ -60,6 +78,7 @@ def decompressione(secret_key: str, mode: int):
 		
 		block_length = math.floor(len(outputPC) / size)
 		print("Block length RLE: ", block_length)
+		log_progress(f"Block length RLE: {block_length}")
 		displ.append(0)
 		seek = block_length - 1
 		for i in range(size):
@@ -87,46 +106,55 @@ def decompressione(secret_key: str, mode: int):
 	recvbuf = recvbuf.tobytes().decode("utf-8")
 	recvbuf = recvbuf[:-1] if recvbuf.endswith(",") else recvbuf  # rimuove la virgola rimasta dalla divisione dei blocchi
 
+	recvbuf = recvbuf[:-1] if recvbuf.endswith(",") else recvbuf  # rimuove la virgola rimasta dalla divisione dei blocchi
+
+	# --- INIZIO NUOVO BLOCCO OTTIMIZZATO ---
+
 	rleModule = rle.Rle()
+
+	# 1. Decodifica RLE locale (produce stringa CSV "10,20,30...")
 	rleDecodedStringBlock = rle.Rle.parallel_rle_decode(rleModule, data=recvbuf)
-		#print(rleDecodedString)
 
-	rleDecodedString = comm.gather(rleDecodedStringBlock, root=0)
+	# 2. Conversione PARALLELA in Interi
+	# Invece di mandare stringhe giganti al master, convertiamo subito in numeri.
+	# "if x" filtra le stringhe vuote causate da virgole doppie o finali,
+	# RISOLVENDO DEFINITIVAMENTE IL "ValueError: invalid literal for int()".
+	local_integers = [int(x) for x in rleDecodedStringBlock.split(',') if x]
+	
+	# Convertiamo in numpy array per efficienza nel trasferimento
+	local_array = np.array(local_integers, dtype=np.int32)
 
-	if not rank:
-		rleDecodedString = ''.join(rleDecodedString)
-		rleDecodedString = rleDecodedString[:-1]  # rimuove l'ultima virgola aggiunta in parallel rle decode
+	# 3. Raccogliamo ARRAY, non stringhe
+	# Gather restituisce una lista di numpy arrays [arr_rank0, arr_rank1, ...]
+	gathered_arrays = comm.gather(local_array, root=0)
 
-		with open("TestFiles/Output/rleDecodedString_mpi.txt", "w") as tempRLEfile:
-			tempRLEfile.write(rleDecodedString)
+	if rank == 0:
+		# Uniamo tutti gli array numpy in uno solo (molto veloce)
+		res = np.concatenate(gathered_arrays)
 		
-		""" rleDecodedStringTest = rle.Rle.rle_decode(rleModule, data=outputPC)
-		with open("TestFiles/Output/rleDecodedString.txt", "w") as tempRLEfile:
-			tempRLEfile.write(rleDecodedStringTest) """
+		# Convertiamo in lista standard Python (se bmtf richiede lista standard)
+		# Se bmtf accetta numpy array, puoi rimuovere .tolist()
+		res = res.tolist()
 
 		rleElapsedTime = time.time() - rleStartTime
-		print(str(rleElapsedTime) + "  -> elapsed time of I-RLE")
+		print(str(rleElapsedTime) + "  -> elapsed time of I-RLE (Parallel Int Conversion)")
+		log_progress(str(rleElapsedTime) + "  -> elapsed time of I-RLE (Parallel Int Conversion)")
 
 		# IMTF
-		
 		mtfStartTime = time.time()
 
-		block_size = 1024 #1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
-
-		mtfList = rleDecodedString.split(",")
-		res = []
-		for i in mtfList:
-			res.append(int(i))
-		#mtfDecodedString = mtf.decode(res, dictionary=sorted(dictionaryStr))
+		# Non serve più il ciclo for lento di conversione, 'res' è già pronto!
+		block_size = 1024 
 		mtfDecodedString = bmtf.secure_decode(res, sorted(dictionaryStr), secret_key, block_size)
-		#print("-----MTF: " + mtfDecodedString)
 
 		mtfElapsedTime = time.time() - mtfStartTime
 		print(str(mtfElapsedTime) + "  -> elapsed time of I-BMTF")
+		log_progress(str(mtfElapsedTime) + "  -> elapsed time of I-BMTF")
 
 		# IBWT
 		bwtStartTime = time.time()
 
+	# --- FINE NUOVO BLOCCO OTTIMIZZATO ---
 	# Distribuisco i blocchi della BWT
 	block_length = 0
 	displ = []
@@ -147,7 +175,7 @@ def decompressione(secret_key: str, mode: int):
 	recvbuf = np.empty(block_length, dtype='b')
 	comm.Scatterv((sendbuf, counts, displ, MPI.BYTE), recvbuf, root=0)
 	recvbuf = recvbuf.tobytes().decode("utf-8")
-	outputBWT_block = sbwt.ibwt_from_suffix(recvbuf, r + secret_key)
+	outputBWT_block = block_ibwt(recvbuf, r + secret_key, rank)
 	outputBWT_block = ''.join(outputBWT_block)
 	outputBWT_block_list = comm.gather(outputBWT_block, root=0)
 
@@ -160,5 +188,7 @@ def decompressione(secret_key: str, mode: int):
 		outputBWTFile.write(outputBWTString.encode())
 		bwtElapsedTime = time.time() - bwtStartTime
 		print(str(bwtElapsedTime) + "  -> elapsed time of I-BWT")
+		log_progress(str(bwtElapsedTime) + "  -> elapsed time of I-BWT")
 
 		print(str(time.time() - start) + " -> elapsed time of decompression")
+		log_progress(str(time.time() - start) + " -> elapsed time of decompression")

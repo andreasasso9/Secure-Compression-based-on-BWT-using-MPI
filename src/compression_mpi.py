@@ -3,19 +3,36 @@ import bmtf.bmtf as bmtf
 import rle.rle as rle
 import pc.pc as pc
 import time
-import multiprocessing
 import random
-import subprocess
 import math
 from mpi4py import MPI
 import numpy as np
 import os
+import datetime
 
-def block_bwt(input, key, index, return_dict):
-	outputBWT = sbwt.bwt_from_suffix(input, key)
-	return_dict[index] = outputBWT
+def block_bwt(stringInput, key, rank):
+    results = []
+    strings = []
+    # Split se > 2MB
+    if len(stringInput) > 2*1024*1024:
+        strings = [stringInput[i:i + 2*1024*1024] for i in range(0, len(stringInput), 2*1024*1024)]
+    else:
+        strings = [stringInput]
 
+    with open(f"TestFiles/Output/bfile_{rank}.txt", "w") as bFile:
+        for s in strings:
+            s += "\003"
+            bFile.write(str(len(s)) + "\n") # Salva la lunghezza reale con \003
+            out_part = sbwt.bwt_from_suffix(s, key)
+            results.append(out_part) 
 
+    return "".join(results) # Unisce tutti i sotto-blocchi del rank
+
+def log_progress(message, mode='a'):
+	if MPI.COMM_WORLD.Get_rank() == 0:  # Solo il rank 0 esegue il log
+		with open("progress.txt", mode) as progress:
+			timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+			progress.write(f"[{timestamp}] {message}\n")
 
 def compressione(file_name: str, secret_key: str, mode: int):
 	comm = MPI.COMM_WORLD
@@ -23,11 +40,13 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	rank = comm.Get_rank()
 	r = None
 	filePath = "TestFiles/Input/" + file_name
+	
 	if rank == 0:
 		start_time = time.time()
 
 		#BWT
 		print("starting sBWT...")
+		log_progress("starting sBWT...", mode='w')
 		bwtStartTime = time.time()
 
 		# Salvo la chiave per la BWT
@@ -71,20 +90,28 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		f.seek(offset[0])
 		data = f.read(recv_len[0])
 
-	stringInput = data.decode() + "\003"
+	stringInput = data.decode()
 
 	eelapsed_time = time.time() - time_start
-	if not rank: print(str(eelapsed_time) + "  -> elapsed time of encoding BWT scatter")
+	if not rank: 
+		print(str(eelapsed_time) + "  -> elapsed time of encoding BWT scatter")
+		log_progress(str(eelapsed_time) + "  -> elapsed time of encoding BWT scatter")
 
 	time_start = time.time()
-	outputBWT_block = sbwt.bwt_from_suffix(stringInput, r + secret_key)
-	eelapsed_time = time.time() - time_start
-	if not rank: print(str(eelapsed_time) + "  -> elapsed time of sBWT block")
+	#outputBWT_block = sbwt.bwt_from_suffix(stringInput, r + secret_key)
 	
+	outputBWT_block = block_bwt(stringInput, r + secret_key, rank)
+	eelapsed_time = time.time() - time_start
+	if not rank: 
+		print(str(eelapsed_time) + "  -> elapsed time of sBWT block")
+		log_progress(str(eelapsed_time) + "  -> elapsed time of sBWT block")
+
 	time_start = time.time()
 	outputBWT_block_list = comm.gather(outputBWT_block, root=0)
 	eelapsed_time = time.time() - time_start
-	if not rank: print(str(eelapsed_time) + "  -> elapsed time of gathering BWT blocks")
+	if not rank: 
+		print(str(eelapsed_time) + "  -> elapsed time of gathering BWT blocks")
+		log_progress(str(eelapsed_time) + "  -> elapsed time of gathering BWT blocks")
 
 	rleModule = rle.Rle()
 	outputMTF = []
@@ -96,6 +123,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 				outputBWT += element
 		bwtElapsedTime = time.time() - bwtStartTime
 		print(str(bwtElapsedTime) + "  -> elapsed time of sBWT")
+		log_progress(str(bwtElapsedTime) + "  -> elapsed time of sBWT")
 		fileOutputBWT = open("TestFiles/Output/outputBWT.txt", "w+")
 		fileOutputBWT.write(outputBWT)
 		#salvo il dizionario della BWT
@@ -107,6 +135,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 		#MTF
 		print("starting bMTF...")
+		log_progress("starting bMTF...")
 		
 		dictionary = sorted(dictStr)
 		block_size = 1024 # 1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
@@ -117,11 +146,11 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		outputMTF = bmtf.secure_encode(outputBWT, dictionary, secret_key, block_size)
 		mtf_elapsed_time = time.time() - mtf_start_time
 		print(str(mtf_elapsed_time) + "  -> elapsed time of bMTF")
-		fileOutputMTF = open("TestFiles/Output/outputMTF.txt", "w+")
-		fileOutputMTF.write(str(outputMTF).replace(" ", ""))
+		log_progress(str(mtf_elapsed_time) + "  -> elapsed time of bMTF")
 
 		#RLE
 		print("starting RLE")
+		log_progress("starting RLE")
 		
 		rle_start_time = time.time()
 
@@ -150,11 +179,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	
 	comm.Scatterv((outputMTF, counts, displ, MPI.UNSIGNED_CHAR), recvbuf, root=0)
 
-	# Converte le gli int in stringhe per RLE
-	input_for_rle = [str(x) for x in recvbuf]
-
-	# Pass the list of strings to RLE
-	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=input_for_rle)
+	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=recvbuf)
 
 	outputRLE_list = comm.gather(outputRLEBlock, root=0)
 
@@ -164,15 +189,20 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 		rle_elapsed_time = time.time() - rle_start_time
 		print(str(rle_elapsed_time) + "  -> elapsed time of RLE")
+		log_progress(str(rle_elapsed_time) + "  -> elapsed time of RLE")
 		fileOutputRLE = open("TestFiles/Output/outputRLE.txt", "w+")
 		fileOutputRLE.write(str(outputRLE))
 		fileOutputRLE.close()
 
 		#PC
 		print("starting PC")
+		log_progress("starting PC")
 		pc_start_time = time.time()
 		pc.compress(outputRLE, mode)
 		pc_elapsed_time = time.time() - pc_start_time
 		print(str(pc_elapsed_time) + "  -> elapsed time of PC")
+		log_progress(str(pc_elapsed_time) + "  -> elapsed time of PC")
+
 		total_elapsed_time = time.time() - start_time
 		print(str(total_elapsed_time) + "  -> elapsed time of compression")
+		log_progress(str(total_elapsed_time) + "  -> elapsed time of compression")

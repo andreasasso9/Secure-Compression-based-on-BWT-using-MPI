@@ -10,7 +10,7 @@ def suffix_array(string):
 def bwt_from_suffix(string, key, s_array=None):
     if s_array is None:
         #s_array = divsufsort(string)
-         s_array = suffix.buildSuffixArrayDC3(string, key)
+        s_array = suffix.buildSuffixArrayDC3(string, key)
     
 	# Costruisco la BWT usando l'array dei suffissi
     # string[idx-1] corrisponde a un carattere dell'ultima colonna della matrice delle rotazioni della BWT
@@ -19,55 +19,53 @@ def bwt_from_suffix(string, key, s_array=None):
 # inversa della BWT che utilizza gli array dei suffissi
 def ibwt_from_suffix(string, key):
     """
-    for i := 0 to N-1 do
-        P[i] := C[L[i]];
-        C[L[i]] := C[L[i]] + 1
-        end;
-
-    sum := 0;
-    for ch := FIRST(alphabet) to LAST(alphabet) do
-        sum := sum + C[ch];
-        C[ch] := sum - C[ch];
-        end;
-
-    i := I;
-    for j := N-1 downto 0 do
-        S[j] := L[i];
-        i := P[i] + C[L[i]]
-        end
-
-    return S
+    Inversa della BWT ottimizzata.
     """
+    # 1. Recupero alfabeto e applico ordinamento segreto
     alphabeth = sorted(set(string))
     remap_dict = customSort.getSecretSort(alphabeth, key)
-    secret_alphabeth = []
-    temp_dict = dict(sorted(remap_dict.items(), key=lambda item: item[1])).keys()
-    for key in temp_dict:
-        secret_alphabeth.append(key)
-    #print("ALFABETO IBWT: " + str(secret_alphabeth))
-    C = {}
-    for i in range(0, len(secret_alphabeth)):
-        C[secret_alphabeth[i]] = 0
-    P = list()
-    for i in range(0, len(string)):
-        P.append(C[string[i]])
-        C[string[i]] = C[string[i]] + 1
-
-    sum = 0
-    for character in secret_alphabeth:
-        sum = sum + C[character]
-        C[character] = sum - C[character]
-
-    T = []
-    for i in range(0, len(string)):
-        T.append(P[i] + C[string[i]])
     
-    i = 0
-    out = [0] * len(string)
-    for j in range(len(string) - 1, -1, -1):
-        out[j] = string[i]
-        i = P[i] + C[string[i]]
-    return out[1:] # The first char is always an EOF
+    # Ottengo l'alfabeto nell'ordine segreto determinato dalla chiave
+    secret_alphabeth = sorted(remap_dict.keys(), key=lambda k: remap_dict[k])
+    
+    # 2. Calcolo P (Rank array)
+    # P[i] indica quanti caratteri uguali a string[i] sono apparsi prima di i
+    P = [0] * len(string)
+    count_occ = {char: 0 for char in alphabeth} # Contatore temporaneo locale
+    
+    for i, char in enumerate(string):
+        P[i] = count_occ[char]
+        count_occ[char] += 1
+        
+    # 3. Calcolo C (Cumulative Count) basato sull'alfabeto segreto
+    # C[ch] deve contenere la somma delle occorrenze di tutti i caratteri che precedono 'ch'
+    # nell'ordine dell'alfabeto segreto.
+    
+    C = {}
+    total = 0
+    for char in secret_alphabeth:
+        C[char] = total
+        total += count_occ[char] # count_occ alla fine del ciclo precedente contiene i totali
+        
+    # 4. Ricostruzione (LF Mapping)
+    n = len(string)
+    out = [None] * n
+    i = 0 # Si parte dall'indice che corrisponde al carattere '$' (o EOF), che nella BWT classica finisce in posizione 0 della F-column se è il minore.
+    
+    # Ottimizzazione: lookup veloce fuori dal ciclo
+    # Creiamo una lista per C_mapped dove C_mapped[i] = C[string[i]]
+    # Questo evita il lookup nel dizionario dentro il ciclo while
+    C_mapped_vals = [C[char] for char in string]
+
+    # Ricostruzione a ritroso
+    for j in range(n - 1, -1, -1):
+        char = string[i]
+        out[j] = char
+        # Passo LF: i = P[i] + C[char]
+        i = P[i] + C_mapped_vals[i]
+        
+    # Ritorna la stringa escludendo il primo carattere (che è l'EOF/EOS aggiunto in compressione)
+    return "".join(out[1:])
 
 # inversa della BWT che non usa i vettori dei suffissi (non viene più usata)
 def ibwt(r: str) -> str:
