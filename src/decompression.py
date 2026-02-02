@@ -56,21 +56,6 @@ def decompressione(secret_key: str, mode: int):
 	#Parallel RLE Decoding 
 	rleDecodedString = []
 	nproc = multiprocessing.cpu_count()
-<<<<<<< HEAD
-	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
-	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
-
-	size = len(outputPC)
-	block_length = max(MIN_BLOCK, min(math.ceil(size / nproc),MAX_BLOCK)) 
-	num_blocks = max(1, math.ceil(size / block_length)) #se il file è minore di MIN_BLOCK va in full size
-
-
-
-	if num_blocks>1:
-		print("rle block mode")
-
-		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
-=======
 	size = len(outputPC)
 
 	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
@@ -84,16 +69,12 @@ def decompressione(secret_key: str, mode: int):
 		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
 
 
->>>>>>> develop
 		time_start = time.time()
 		tasks = []
 		displ = []
 		counts = []
 		results = []
-<<<<<<< HEAD
-=======
 		size = nproc * 10
->>>>>>> develop
 		
 		displ.append(0)
 		seek = block_length - 1
@@ -169,8 +150,6 @@ def decompressione(secret_key: str, mode: int):
 
 	bFile = open("TestFiles/Output/bfile.txt", "r")
 	block_lenght = int(bFile.readline()) + 1 #add EOF
-<<<<<<< HEAD
-=======
 
 	MIN_BLOCK = 256 * 1024      # 256 KB grandezza L2 cache orientativa
 	MAX_BLOCK = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
@@ -182,7 +161,6 @@ def decompressione(secret_key: str, mode: int):
 	
 	num_blocks = max(1, fileSize // block_lenght) #se il file è minore di MIN_BLOCK va in full size
 
->>>>>>> develop
 	bFile.close()   
 	using_blocks = True
 	bwtDecodedString = []   
@@ -193,15 +171,8 @@ def decompressione(secret_key: str, mode: int):
 	nproc = multiprocessing.cpu_count()
 	if using_blocks and len(mtfDecodedString) > nproc * 10:
 		print("block mode")
-<<<<<<< HEAD
-		
-		tasks = []
-		num_tasks = len(mtfDecodedString) // block_lenght
-		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo 
-=======
 		tasks = []
 		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
->>>>>>> develop
 		j = 0
 		
 		for i in range(0, len(mtfDecodedString), block_lenght):
