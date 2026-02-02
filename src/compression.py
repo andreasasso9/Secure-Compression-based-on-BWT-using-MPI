@@ -57,7 +57,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	# Codice per eseguire la BWT a blocchi
 
 	#block_lenght = 1024*30
-	using_blocks = True
 	outputBWT = ""
 
 	#Salvo la chiave per la BWT
@@ -91,7 +90,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		size = len(stringInput)
 		print("block mode")
 		time_start = time.time()
-		num_tasks = size // block_length
 
 		# preparo i task
 		tasks = []
