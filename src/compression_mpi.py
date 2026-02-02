@@ -179,16 +179,6 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	
 	comm.Scatterv((outputMTF, counts, displ, MPI.UNSIGNED_CHAR), recvbuf, root=0)
 
-	# Converte le gli int in stringhe per RLE
-	#input_for_rle = [str(x) for x in recvbuf]
-
-	# Pass the list of strings to RLE
-	# outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=input_for_rle)
-
-
-	# Passa direttamente recvbuf (che è un numpy array di interi).
-	# La nuova parallel_rle_encode gestisce gli interi e li converte in stringa
-	# solo al momento del salvataggio, risparmiando 300MB di allocazioni inutili.
 	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=recvbuf)
 
 	outputRLE_list = comm.gather(outputRLEBlock, root=0)

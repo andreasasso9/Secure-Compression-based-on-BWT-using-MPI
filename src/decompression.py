@@ -122,10 +122,12 @@ def decompressione(secret_key: str, mode: int):
 
 	block_size = 1024 #1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
 
-	mtfList = rleDecodedString.split(",")
+	""" mtfList = rleDecodedString.split(",")
 	res = []
 	for i in mtfList:
-		res.append(int(i))
+		res.append(int(i)) """
+
+	res = [int(i) for i in rleDecodedString.split(",") if i]
 	#mtfDecodedString = mtf.decode(res, dictionary=sorted(dictionaryStr))
 	mtfDecodedString = bmtf.secure_decode(res, sorted(dictionaryStr), secret_key, block_size)
 	#print("-----MTF: " + mtfDecodedString)

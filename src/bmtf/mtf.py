@@ -36,18 +36,18 @@ def decode(compressed_text: List[int], dictionary) -> str:
     else:
         dict_list = dictionary
 
-    plain_text = ""
+    plain_text = []
 
     # Read in each rank in the encoded text
     for rank in compressed_text:
         # Read the character of that rank from the dictionary
-        plain_text += dict_list[rank]
+        plain_text.append(dict_list[rank])
 
         # Update the dictionary
         e = dict_list.pop(rank)
         dict_list.insert(0, e)
 
-    return plain_text  # Return original string
+    return "".join(plain_text)  # Return original string
 
 
 if __name__ == "__main__":
