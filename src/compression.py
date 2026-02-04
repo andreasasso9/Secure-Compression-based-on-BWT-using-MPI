@@ -5,7 +5,6 @@ import pc.pc as pc
 import time
 import multiprocessing
 import random
-import subprocess
 import math
 import os
 import numpy as np
@@ -73,8 +72,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	#Ottego il numero di processori disponibili per dividere in blocchi la BWT e salvo
 	
 	#Block lenght può essere compresa solo tra MIN_BLOCK e MAX_BLOCK
-	print("Calculated block len ",fileSize // nproc )
-	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK)) 
+	block_length = max(MIN_BLOCK, min((fileSize // nproc),MAX_BLOCK))
 	num_blocks = max(1, fileSize // block_length) #se il file è minore di MIN_BLOCK va in full size
 
 	print("Block length for BWT: ", block_length)
@@ -91,7 +89,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		size = len(stringInput)
 		print("block mode")
 		time_start = time.time()
-		num_tasks = size // block_length
+
 		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
 
 		# preparo i task
@@ -122,7 +120,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 	bwtElapsedTime = time.time() - bwtStartTime
 	print(str(bwtElapsedTime) + "  -> elapsed time of sBWT")
-	fileOutputBWT = open("TestFiles/Output/outputBWT.txt", "w+")
+	fileOutputBWT = open("TestFiles/Output/outputBWT.txt", "w+",encoding='utf-8')
 	fileOutputBWT.write(outputBWT)
 	fileOutputBWT.close()
 	#salvo il dizionario della BWT
@@ -138,15 +136,21 @@ def compressione(file_name: str, secret_key: str, mode: int):
 	print("starting bMTF...")
 	dictionary = sorted(dictStr)
 
-	block_size = 1024 # 1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
-	
+	#block_size = 1024 # 1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
+	MIN_BLOCK_MTF = 10 * 1024      # 10 KB per non diminuire troppo la sicurezza crittografica
+	MAX_BLOCK_MTF = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
+
+	block_size = max(MIN_BLOCK_MTF, min((len(outputBWT) // len(dictionary)),MAX_BLOCK_MTF))
+	with open("TestFiles/Output/bFileMTF.txt", "w", encoding='utf-8') as bwtFile:
+		bwtFile.write(str(block_size))
+
 	mtf_start_time = time.time()
 	#print(sorted(dictionary))
 	#outputMTF = mtf.encode(plain_text=outputBWT, dictionary=sorted(dictionary)) 
 	outputMTF = bmtf.secure_encode(outputBWT, dictionary, secret_key, block_size)
 	mtf_elapsed_time = time.time() - mtf_start_time
 	print(str(mtf_elapsed_time) + "  -> elapsed time of bMTF")
-	fileOutputMTF = open("TestFiles/Output/outputMTF.txt", "w+")
+	fileOutputMTF = open("TestFiles/Output/outputMTF.txt", "w+", encoding='utf-8')
 	fileOutputMTF.write(str(outputMTF).replace(" ", ""))
 	fileOutputMTF.close()   
 	#*********************************#

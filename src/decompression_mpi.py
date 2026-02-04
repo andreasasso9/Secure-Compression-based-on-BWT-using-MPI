@@ -143,8 +143,10 @@ def decompressione(secret_key: str, mode: int):
 		# IMTF
 		mtfStartTime = time.time()
 
-		# Non serve più il ciclo for lento di conversione, 'res' è già pronto!
-		block_size = 1024 
+		block_size = 0
+		with open("TestFiles/Output/bFileMTF.txt", "r", encoding='utf-8') as bFile:
+			block_size = int(bFile.readline())
+
 		mtfDecodedString = bmtf.secure_decode(res, sorted(dictionaryStr), secret_key, block_size)
 
 		mtfElapsedTime = time.time() - mtfStartTime

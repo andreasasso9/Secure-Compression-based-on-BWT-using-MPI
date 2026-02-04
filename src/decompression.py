@@ -68,8 +68,6 @@ def decompressione(secret_key: str, mode: int):
 		print("rle block mode")
 		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo
 
-
-		time_start = time.time()
 		tasks = []
 		displ = []
 		counts = []
@@ -126,12 +124,12 @@ def decompressione(secret_key: str, mode: int):
 	
 	mtfStartTime = time.time()
 
-	block_size = 1024 #1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
+	#block_size = 1024 #1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
+	block_size = 0
 
-	""" mtfList = rleDecodedString.split(",")
-	res = []
-	for i in mtfList:
-		res.append(int(i)) """
+	with open("TestFiles/Output/bFileMTF.txt", "r", encoding='utf-8') as bFile:
+		block_size = int(bFile.readline())
+	
 
 	res = [int(i) for i in rleDecodedString.split(",") if i]
 	#mtfDecodedString = mtf.decode(res, dictionary=sorted(dictionaryStr))
@@ -162,14 +160,14 @@ def decompressione(secret_key: str, mode: int):
 	num_blocks = max(1, fileSize // block_lenght) #se il file è minore di MIN_BLOCK va in full size
 
 	bFile.close()   
-	using_blocks = True
+
 	bwtDecodedString = []   
 	rFile = open("TestFiles/Output/rfile.txt", "r")
 	r = rFile.readline()
 	rFile.close()
 	
 	nproc = multiprocessing.cpu_count()
-	if using_blocks and len(mtfDecodedString) > nproc * 10:
+	if num_blocks > 1:
 		print("block mode")
 		tasks = []
 		chunksize = min(3,max(1,num_blocks//nproc)) #Definisco la dimensione dei chunk per ogni processo

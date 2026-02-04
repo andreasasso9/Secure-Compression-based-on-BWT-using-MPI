@@ -124,7 +124,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		bwtElapsedTime = time.time() - bwtStartTime
 		print(str(bwtElapsedTime) + "  -> elapsed time of sBWT")
 		log_progress(str(bwtElapsedTime) + "  -> elapsed time of sBWT")
-		fileOutputBWT = open("TestFiles/Output/outputBWT.txt", "w+")
+		fileOutputBWT = open("TestFiles/Output/outputBWT.txt", "w+", encoding="utf-8")
 		fileOutputBWT.write(outputBWT)
 		#salvo il dizionario della BWT
 		fileOutputDictBWT = open("TestFiles/Output/outputDictBWT.txt", "wb")
@@ -136,9 +136,16 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		#MTF
 		print("starting bMTF...")
 		log_progress("starting bMTF...")
-		
+
 		dictionary = sorted(dictStr)
-		block_size = 1024 # 1/2((math.log2(len(stringInput))/math.log2(len(dictionary)))) The real formula is this one
+
+		MIN_BLOCK_MTF = 10 * 1024      # 10 KB per non diminuire troppo la sicurezza crittografica
+		MAX_BLOCK_MTF = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
+
+		block_size = max(MIN_BLOCK_MTF, min((len(outputBWT) // len(dictionary)),MAX_BLOCK_MTF))
+		with open("TestFiles/Output/bFileMTF.txt", "w", encoding='utf-8') as bwtFile:
+			bwtFile.write(str(block_size))
+		
 		
 		mtf_start_time = time.time()
 		#print(sorted(dictionary))
@@ -156,7 +163,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 		####################################àoutputMTF=list(map(str, outputMTF))
 
-		outputMTF = np.array(outputMTF, dtype=np.uint8)
+		outputMTF = np.array(outputMTF, dtype=np.uint32)
 		counts = []
 		displ = []
 
@@ -175,9 +182,9 @@ def compressione(file_name: str, secret_key: str, mode: int):
 
 	outputMTFBlockLength = comm.scatter(counts, root=0)
 	
-	recvbuf = np.empty(outputMTFBlockLength, dtype=np.uint8)
+	recvbuf = np.empty(outputMTFBlockLength, dtype=np.uint32)
 	
-	comm.Scatterv((outputMTF, counts, displ, MPI.UNSIGNED_CHAR), recvbuf, root=0)
+	comm.Scatterv((outputMTF, counts, displ, MPI.UINT32_T), recvbuf, root=0)
 
 	outputRLEBlock = rle.Rle.parallel_rle_encode(rleModule, data=recvbuf)
 
