@@ -140,7 +140,7 @@ def compressione(file_name: str, secret_key: str, mode: int):
 		dictionary = sorted(dictStr)
 
 		MIN_BLOCK_MTF = 10 * 1024      # 10 KB per non diminuire troppo la sicurezza crittografica
-		MAX_BLOCK_MTF = 2 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
+		MAX_BLOCK_MTF = 8 * 1024 * 1024  # 2 MB grandezza L3 cache orientativa
 
 		block_size = max(MIN_BLOCK_MTF, min((len(outputBWT) // len(dictionary)),MAX_BLOCK_MTF))
 		with open("TestFiles/Output/bFileMTF.txt", "w", encoding='utf-8') as bwtFile:
