@@ -18,9 +18,9 @@ python tester.py <file_input> <chiave_segreta> <codifica>
 ```
 
 ## 2. Esecuzione MPI
-Intsallazione MPI:
-Windows: https://learn.microsoft.com/it-it/message-passing-interface/microsoft-mpi
-Linux: https://docs.open-mpi.org/en/v5.0.x/installing-open-mpi/downloading.html
+Intsallazione MPI:  
+Windows: https://learn.microsoft.com/it-it/message-passing-interface/microsoft-mpi  
+Linux: https://docs.open-mpi.org/en/v5.0.x/installing-open-mpi/downloading.html  
 
 Esecuzione:
 ```bash
@@ -29,11 +29,11 @@ mpirun -n<num_processi> python tester_mpi.py <file_input> <chiave_segreta> <codi
 ```
 
 Il parametro 'chiave segreta' è una stringa che funge da chiave per la crittografia simmetrica integrata nel processo di compressione che "mescola" i dati in modo che possano essere decompressi solo da chi possiede questa chiave.
-Il parametro codifica seleziona quale algoritmo di compressione utilizzare nell'ultima fase del processo:
-0 = Huffman
-1 = Arithmetic Coding
-2 = LZW
-3 = BZip2
+Il parametro codifica seleziona quale algoritmo di compressione utilizzare nell'ultima fase del processo:  
+0 = Huffman  
+1 = Arithmetic Coding  
+2 = LZW  
+3 = BZip2  
 
 # 3. Esecuzione Bzip
 ```bash
