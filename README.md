@@ -1,6 +1,6 @@
-# Secure Parallel Compression: sBWT + DC3 + MPI
+# Secure Compression on sBWT using MPI
 
-Implementazione ad alte prestazioni di un algoritmo di compressione sicura basato sulla **Scrambled Burrows-Wheeler Transform (sBWT)**.
+Implementazione di un algoritmo di compressione sicura basato sulla **Scrambled Burrows-Wheeler Transform (sBWT)**.
 
 Questo progetto migliora un'implementazione preesistente introducendo l'algoritmo lineare **DC3** per la costruzione del Suffix Array e sfruttando il calcolo parallelo tramite **Multiprocessing** e **MPI**.
 
@@ -8,7 +8,6 @@ Progetto realizzato per il corso di *Compressione Dati*, Corso di Laurea Magistr
 
 ### Librerie Python
 Installa le dipendenze tramite `pip`:
-
 ```bash
 pip install -r requirements.txt
 ```
@@ -19,9 +18,22 @@ python tester.py <file_input> <chiave_segreta> <codifica>
 ```
 
 ## 2. Esecuzione MPI
+Intsallazione MPI:
+Windows: https://learn.microsoft.com/it-it/message-passing-interface/microsoft-mpi
+Linux: https://docs.open-mpi.org/en/v5.0.x/installing-open-mpi/downloading.html
+
+Esecuzione:
 ```bash
 mpiexec -n<num_processi> python tester_mpi.py <file_input> <chiave_segreta> <codifica>
+mpirun -n<num_processi> python tester_mpi.py <file_input> <chiave_segreta> <codifica>
 ```
+
+Il parametro 'chiave segreta' è una stringa che funge da chiave per la crittografia simmetrica integrata nel processo di compressione che "mescola" i dati in modo che possano essere decompressi solo da chi possiede questa chiave.
+Il parametro codifica seleziona quale algoritmo di compressione utilizzare nell'ultima fase del processo:
+0 = Huffman
+1 = Arithmetic Coding
+2 = LZW
+3 = BZip2
 
 # 3. Esecuzione Bzip
 ```bash
